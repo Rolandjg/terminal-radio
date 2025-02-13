@@ -9,7 +9,7 @@
 #include <curl/curl.h>
 #include <iostream>
 #include <cstring>
-#include "json.hpp"
+#include "include/json.hpp"
 
 const char* home = std::getenv("HOME");
 std::string home_string = home;
