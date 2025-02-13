@@ -1,6 +1,6 @@
 #include "player.h"
 #include <iostream>
-//#include <ncurses.h>
+#include <ncurses.h>
 #include <filesystem>
 #include <vector>
 #include <string>
@@ -9,17 +9,36 @@
 #include "playerUtil.h"
 
 int main() {
-//	initscr();
-//	noecho();
-//	curs_set(0);
+	//initscr();
+	//noecho();
+	//curs_set(0);
 
 	// int selected;
 
-	std::vector<std::string> files = PlayerUtil::getMusicFiles();
+	std::vector<std::string> ips = PlayerUtil::getAvailableServers("all.api.radio-browser.info");
 
-	Player p;
-	p.setStation(files[0]);
-	p.play();
+	for(const auto& ip: ips) {
+		std::cout << ip << std::endl;
+	}
+
+	std::vector<std::string> servers = PlayerUtil::getReverseDNS(ips);
+
+	if (!servers.empty()) {
+        std::string apiUrl = "https://" + servers.front() + "/json/stations";
+        std::cout << "\nFetching data from: " << apiUrl << std::endl;
+        std::string response = PlayerUtil::fetchDataFromServer(apiUrl, 0);
+	
+		std::cout << "print response " << std::endl;
+		std::cout << response << std::endl;
+	
+		std::cout << "formatting" << std::endl;
+		std::vector<PlayerUtil::Station> stations = PlayerUtil::getStreamInfo(response);
+	
+	
+		for (const auto& station : stations){
+			std::cout << station.name << std::endl;
+		}
+    }
 
 	while(true){
 		
