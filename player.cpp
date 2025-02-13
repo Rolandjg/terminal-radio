@@ -64,19 +64,21 @@ Player& Player::operator=(const Player& other) {
 }
 
 void Player::play() {
+	std::cout << "paused state: " << paused << std::endl;
     if (stream.empty()) {
         std::cerr << "No stream selected." << std::endl;
         return;
     }
 
     if (!paused) {
+		std::cout << "Player is already playing." << std::endl;
         return;  // Already playing
     }
 
-    const char *mpv_cmd[] = {"loadfile", stream.c_str(), nullptr};
+    const char* mpv_cmd[] = {"loadfile", stream.c_str(), nullptr};
 
     if (mpv_command(mpv, mpv_cmd) < 0) {
-        std::cerr << "Failed to play stream." << std::endl;
+        std::cerr << "Failed to play stream. Make sure MPV is installed and working" << std::endl;
         return;
     }
 
@@ -85,6 +87,10 @@ void Player::play() {
 }
 
 void Player::pause() {
+	if (paused)  
+		std::cout << "Player is already paused." << std::endl;
+		return;
+
     if (!mpv) {
         std::cerr << "MPV is not initialized." << std::endl;
         return;
@@ -100,7 +106,7 @@ void Player::pause() {
     if (mpv_set_property(mpv, "pause", MPV_FORMAT_FLAG, &is_paused) < 0) {
         std::cerr << "Failed to toggle pause." << std::endl;
     } else {
-        paused = is_paused;
+        paused = true;
     }
 }
 
@@ -115,11 +121,14 @@ void Player::setStation(const std::string& newStream) {
     // Stop current playback if necessary
     if (!paused) {
         const char *stopCmd[] = {"stop", nullptr};
+		paused = true;
         if (mpv_command(mpv, stopCmd) < 0) {
             std::cerr << "Failed to stop current playback." << std::endl;
         }
     }
+}
 
-    play();
+bool Player::isPlaying() { 
+	return !paused;
 }
 

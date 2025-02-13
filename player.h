@@ -26,6 +26,9 @@ public:
 
     // Sets the station
     void setStation(const std::string& newStream);
+
+	// True if the player is playing, false otherwise
+	bool isPlaying();
 };    
 
 #endif

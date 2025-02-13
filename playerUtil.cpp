@@ -110,7 +110,7 @@ std::vector<std::string> PlayerUtil::getAvailableServers(const std::string &host
     return servers;
 }	
 
-std::string PlayerUtil::fetchDataFromServer(const std::string &serverUrl, int amount) {
+std::string PlayerUtil::fetchDataFromServer(const std::string &serverUrl, const std::string &extra) {
     CURL *curl;
     CURLcode res;
     std::string responseData;
@@ -119,45 +119,7 @@ std::string PlayerUtil::fetchDataFromServer(const std::string &serverUrl, int am
     if (curl) {
 		std::string limittedRequest;
 		
-		// If the search amount is zero, search all
-		if(amount != 0) { 
-			limittedRequest = serverUrl + "/json/stations?limit=" + std::to_string(amount);
-		} else { 
-			limittedRequest = serverUrl;
-		}
-
-        curl_easy_setopt(curl, CURLOPT_URL, limittedRequest.c_str());
-        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
-        curl_easy_setopt(curl, CURLOPT_WRITEDATA, &responseData);
-        curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
-        
-        res = curl_easy_perform(curl);
-        if (res != CURLE_OK) {
-            std::cerr << "curl_easy_perform() failed: " << curl_easy_strerror(res) << std::endl;
-        }
-
-        curl_easy_cleanup(curl);
-    }
-    
-    return responseData;
-}
-
-std::string PlayerUtil::fetchDataFromServer(const std::string &serverUrl, int amount, const std::string& sortType) {
-    CURL *curl;
-    CURLcode res;
-    std::string responseData;
-
-    curl = curl_easy_init();
-    if (curl) {
-		std::string limittedRequest;
-		
-		// If the search amount is zero, search all
-		if(amount != 0) { 
-			limittedRequest = serverUrl + "/json/stations?limit=" + std::to_string(amount);
-			limittedRequest = serverUrl + "&order=" + sortType;
-		} else { 
-			limittedRequest = serverUrl + "/json/stations?order=" + sortType;
-		}
+		limittedRequest = serverUrl + extra;
 
         curl_easy_setopt(curl, CURLOPT_URL, limittedRequest.c_str());
         curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
@@ -206,33 +168,43 @@ std::vector<std::string> PlayerUtil::getReverseDNS(const std::vector<std::string
 }
 
 std::vector<PlayerUtil::Station> PlayerUtil::getStreamInfo(const std::string &json) {
-	std::vector<PlayerUtil::Station> stationList;
+    std::vector<PlayerUtil::Station> stationList;
 
-	nlohmann::json jsonData = nlohmann::json::parse(json);
-	
-	std::cout << "showing all info" << std::endl;
-	for(auto& [key, value] : jsonData.items()){
-		std::cout << "Key: " << key << ", Value: " << value << std::endl;
-	}
+    try {
+        nlohmann::json jsonData = nlohmann::json::parse(json);
 
-	std::cout << "formatting struct" << std::endl;
-	for(const auto& obj : jsonData) { 
-		PlayerUtil::Station station;
+        for (const auto& obj : jsonData) { 
+            PlayerUtil::Station station;
 
-		station.name = obj["name"];
-		station.tags = obj["tags"];
-		station.url = obj["url"];
-		station.homePage = obj["homepage"];
-		station.country = obj["country"];
-		station.countryCode = obj["countryCode"];
-		station.language = obj["langauge"];
-		station.clickCount = obj["clickcount"];
+            station.name = obj.value("name", "Unknown");
+            station.tags = obj.value("tags", "");
+            station.url = obj.value("url", "");
+            station.homePage = obj.value("homepage", "");
+            station.country = obj.value("country", "");
+            station.countryCode = obj.value("countrycode", ""); // Fixed key name
+            station.language = obj.value("language", ""); // Fixed spelling
+            station.clickCount = obj.value("clickcount", 0);
 
-		std::vector<double> geo;
-		geo.push_back(obj["geo_lat"]);
-		geo.push_back(obj["geo_long"]);
-		stationList.push_back(station);
-	}
-	return stationList;
+            std::vector<double> geo;
+            if (!obj["geo_lat"].is_null() && obj["geo_lat"].is_number()) {
+                geo.push_back(obj["geo_lat"].get<double>());
+            } else {
+                geo.push_back(0.0); // Default value
+            }
+
+            if (!obj["geo_long"].is_null() && obj["geo_long"].is_number()) {
+                geo.push_back(obj["geo_long"].get<double>());
+            } else {
+                geo.push_back(0.0); // Default value
+            }
+
+            stationList.push_back(station);
+        }
+    } catch (const nlohmann::json::exception& e) {
+        std::cerr << "JSON parsing error: " << e.what() << std::endl;
+    }
+
+    return stationList;
 }
+
 	

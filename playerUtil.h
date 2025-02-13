@@ -42,12 +42,9 @@ public:
 	// Returns a list of available servers from the hostname
 	static std::vector<std::string> getAvailableServers(const std::string &hostname);
 
-	// Gets stations from the server url, specify the number of stations, 0 gets all stations
-	static std::string fetchDataFromServer(const std::string &serverURL, int amount);
+	// Gets stations from the server url, specify the arguments in extra
+	static std::string fetchDataFromServer(const std::string &serverUrl, const std::string &extra);
 	
-	// Gets the data from the server with a sort emphasis	
-	static std::string fetchDataFromServer(const std::string &serverURL, int amount, const std::string& sortType);
-
 	// Gets the hostname of the ip addresses
 	static std::vector<std::string> getReverseDNS(const std::vector<std::string> &ipAddresses);
 
