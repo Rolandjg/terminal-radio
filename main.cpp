@@ -7,6 +7,7 @@
 #include <cstdlib>
 #include <unordered_set>
 #include "playerUtil.h"
+#include <unistd.h>
 
 int main() {
 	//initscr();
@@ -23,22 +24,39 @@ int main() {
 
 	std::vector<std::string> servers = PlayerUtil::getReverseDNS(ips);
 
-	if (!servers.empty()) {
-        std::string apiUrl = "https://" + servers.front() + "/json/stations";
-        std::cout << "\nFetching data from: " << apiUrl << std::endl;
-        std::string response = PlayerUtil::fetchDataFromServer(apiUrl, 0);
-	
-		std::cout << "print response " << std::endl;
-		std::cout << response << std::endl;
-	
-		std::cout << "formatting" << std::endl;
-		std::vector<PlayerUtil::Station> stations = PlayerUtil::getStreamInfo(response);
-	
-	
-		for (const auto& station : stations){
-			std::cout << station.name << std::endl;
-		}
+	if(servers.empty()) {
+		std::cout << "No servers found ):" << std::endl;
+		return 0;
+	}
+
+	// Get a server from the list
+    std::string apiUrl = "https://" + servers.front() + "/json/stations/search";
+    std::cout << "\nFetching data from: " << apiUrl << std::endl;
+    std::string response = PlayerUtil::fetchDataFromServer(apiUrl, "?tag=rock&limit=5&order=clickcount&reverse=true");
+
+	// Add stations to a list of stations
+    std::vector<PlayerUtil::Station> stations = PlayerUtil::getStreamInfo(response);
+
+	if(stations.empty()) {
+		std::cout << "No stations found ): " << std::endl;
+		return 0;
+	}
+
+    for (const auto& station : stations){
+    	std::cout << station.name << " - " << station.clickCount << " - " << station.tags << std::endl;
     }
+
+	// Play the first station
+	Player Player1;
+	Player1.setStation(stations[0].url);
+	std::cout << "playing station 0" << std::endl;
+	Player1.play();
+
+	usleep(5000000);
+
+	std::cout << "swtich to station 1" << std::endl;	
+	Player1.setStation(stations[1].url);
+	Player1.play();
 
 	while(true){
 		
