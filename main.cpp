@@ -61,6 +61,7 @@ std::vector<PlayerUtil::Station> constructDisplayedStations(const std::vector<Pl
     std::vector<PlayerUtil::Station> displayedStations;
     
     int startIdx = rows * page;
+
     int endIdx = std::min(startIdx + rows, (int)stations.size());
 
     for (int i = startIdx; i < endIdx; i++) {
@@ -111,12 +112,12 @@ void drawInfo(PlayerUtil::Station station, WINDOW *win) {
 
 	wattroff(win, A_REVERSE); // Disable highlight
 
-	mvwprintw(win, 4, 1, "%s", station.tags.c_str());	
-	mvwprintw(win, 8, 1, "%s", station.country.c_str());	
-	mvwprintw(win, 9, 1, "%s", station.language.c_str());	
-	mvwprintw(win, 10, 1, "%s", station.url.c_str());	
-	mvwprintw(win, 11, 1, "%s", station.homePage.c_str());	
-	mvwprintw(win, 12, 1, "%s", std::to_string(station.clickCount).c_str());	
+	mvwprintw(win, 4, 1, "%s", ("tags - " + station.tags).c_str());	
+	mvwprintw(win, 8, 1, "%s", ("Country - " + station.country).c_str());	
+	mvwprintw(win, 9, 1, "%s", ("Language - " + station.language).c_str());	
+	mvwprintw(win, 10, 1, "%s", ("URL - " + station.url).c_str());	
+	mvwprintw(win, 12, 1, "%s", ("Website - " + station.homePage).c_str());	
+	mvwprintw(win, 13, 1, "%s", ("Click Count - " + std::to_string(station.clickCount)).c_str());	
 }
 
 int main() {
@@ -152,7 +153,7 @@ int main() {
 		drawHeader(header);
 
 		if (selected >= (int)stations.size()-1) {
-			std::string args = constructArgs(100, stations.size()+99, sortOrder, tags, reverse, country);
+			std::string args = constructArgs(100, stations.size(), sortOrder, tags, reverse, country);
 			auto moreStations = getStations(args);	
 			
 			for (const auto& station : moreStations) {
@@ -162,7 +163,18 @@ int main() {
 		}
 
 		// Input handeling
-		if (input == 'q') break;
+		if (input == 'q') break; // quit
+
+		
+		if (input == 'p') {
+			if (mainPlayer.isPlaying()){
+				mainPlayer.pause();
+				header = " Paused";
+			} else {
+				mainPlayer.play();
+				header = "Playing";
+			}
+		} 
 
 		if (input == 'j' && selected < (int)stations.size() - 1) {
     		selected++;

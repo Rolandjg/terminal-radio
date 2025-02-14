@@ -178,8 +178,8 @@ std::vector<PlayerUtil::Station> PlayerUtil::getStreamInfo(const std::string &js
 
             station.name = obj.value("name", "Unknown");
 
-			if((int)station.name.size() > 32)
-				station.shortName = station.name.substr(0, 29) + "...";
+			if((int)station.name.size() > 48)
+				station.shortName = station.name.substr(0, 45) + "...";
 			else
 				station.shortName = station.name;
             station.tags = obj.value("tags", "");
