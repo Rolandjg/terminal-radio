@@ -13,6 +13,7 @@ public:
 
 	struct Station {
 		std::string name;
+		std::string shortName;
 		std::string tags;
 		std::string url;
 		std::string homePage;

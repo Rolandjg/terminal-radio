@@ -64,7 +64,6 @@ Player& Player::operator=(const Player& other) {
 }
 
 void Player::play() {
-	std::cout << "paused state: " << paused << std::endl;
     if (stream.empty()) {
         std::cerr << "No stream selected." << std::endl;
         return;
@@ -83,12 +82,10 @@ void Player::play() {
     }
 
     paused = false;
-    std::cout << "Playing: " << stream << std::endl;
 }
 
 void Player::pause() {
 	if (paused)  
-		std::cout << "Player is already paused." << std::endl;
 		return;
 
     if (!mpv) {
@@ -112,7 +109,6 @@ void Player::pause() {
 
 void Player::setStation(const std::string& newStream) {
     if (stream == newStream) {
-        std::cout << "Stream is already set to: " << stream << std::endl;
         return;
     }
 

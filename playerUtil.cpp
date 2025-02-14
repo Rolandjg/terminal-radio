@@ -177,6 +177,11 @@ std::vector<PlayerUtil::Station> PlayerUtil::getStreamInfo(const std::string &js
             PlayerUtil::Station station;
 
             station.name = obj.value("name", "Unknown");
+
+			if((int)station.name.size() > 32)
+				station.shortName = station.name.substr(0, 29) + "...";
+			else
+				station.shortName = station.name;
             station.tags = obj.value("tags", "");
             station.url = obj.value("url", "");
             station.homePage = obj.value("homepage", "");
