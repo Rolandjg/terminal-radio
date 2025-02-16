@@ -50,7 +50,7 @@ public:
 	static std::vector<std::string> getReverseDNS(const std::vector<std::string> &ipAddresses);
 
 	// Return the useful information of all the available streams 
-	static std::vector<Station> getStreamInfo(const std::string &json);
+	static std::vector<Station> getStreamInfo(const std::string &json, int shortNameLength);
 };
 
 #endif

@@ -4,6 +4,7 @@
 #include <filesystem>
 #include <vector>
 #include <string>
+#include <cstring>
 #include <cstdlib>
 #include <unordered_set>
 #include "playerUtil.h"
@@ -14,7 +15,7 @@ int rows, cols;
 /*
  * gets a list of stations, pass in args for filtering.
  */
-std::vector<PlayerUtil::Station> getStations(const std::string &args){
+std::vector<PlayerUtil::Station> getStations(const std::string &args, int shortWordLength){
 	std::vector<std::string> ips = PlayerUtil::getAvailableServers("all.api.radio-browser.info");
     std::vector<PlayerUtil::Station> stations;
 
@@ -30,7 +31,7 @@ std::vector<PlayerUtil::Station> getStations(const std::string &args){
     std::string response = PlayerUtil::fetchDataFromServer(apiUrl, args);
 
 	// Add stations to a list of stations
-	stations = PlayerUtil::getStreamInfo(response);	
+	stations = PlayerUtil::getStreamInfo(response, shortWordLength);	
 
 	if(stations.empty()) {
 		std::cout << "No stations found ): " << std::endl;
@@ -47,9 +48,6 @@ std::string playStation(Player &player, const PlayerUtil::Station &station) {
 	player.play();
 
 	std::string message = "Playing " + station.shortName;
-	for (int i = (int)message.size(); i < cols; i++) {
-		message = message + " ";
-	}
 
 	return message;
 }
@@ -74,15 +72,19 @@ std::vector<PlayerUtil::Station> constructDisplayedStations(const std::vector<Pl
  * Draws the header to the top of the page
  */
 void drawHeader(std::string message) {
+	
 	attron(A_REVERSE); // Highlight
+	// Clear
+	for (int i = 0; i < cols; i++) 
+		mvprintw(0, i, "%s", " ");
 	mvprintw(0, 0, "%s", message.c_str());
 	attroff(A_REVERSE); // Disable highlight
 }
 
 /*
- * Builds a calid argument string for the API request
+ * Builds a valid argument string for the API request
  */
-std::string constructArgs(int limit, int offset, const std::string* order, const std::string* tags, bool reverse, const std::string* country) {
+std::string constructArgs(int limit, int offset, const std::string* order, const std::string* tags, bool reverse, const std::string* country, const std::string* language) {
 	std::string args = "?limit=" + 
 					   std::to_string(limit) + 
 					   "&offset=" + 
@@ -94,12 +96,17 @@ std::string constructArgs(int limit, int offset, const std::string* order, const
 		args += "&tag=" + *tags;
 	if (country != nullptr)
 		args += "&country=" + *country;
+	if (language != nullptr)
+		args += "&language" + *language;
 	if (reverse)
 		args += "&reverse=true";
 
 	return args;
 }
 
+/*
+ * Draws the station info the the top right corner of the screen.
+*/
 void drawInfo(PlayerUtil::Station station, WINDOW *win) {
 	box(win, 0, 0);
 	
@@ -112,12 +119,104 @@ void drawInfo(PlayerUtil::Station station, WINDOW *win) {
 
 	wattroff(win, A_REVERSE); // Disable highlight
 
+	wattron(win, COLOR_PAIR(2));
 	mvwprintw(win, 4, 1, "%s", ("tags - " + station.tags).c_str());	
+	wattroff(win, COLOR_PAIR(2));
+
+	wattron(win, COLOR_PAIR(3));
 	mvwprintw(win, 8, 1, "%s", ("Country - " + station.country).c_str());	
+	wattroff(win, COLOR_PAIR(3));
+
+	wattron(win, COLOR_PAIR(2));
 	mvwprintw(win, 9, 1, "%s", ("Language - " + station.language).c_str());	
+	wattroff(win, COLOR_PAIR(2));
+
+	wattron(win, COLOR_PAIR(3));
 	mvwprintw(win, 10, 1, "%s", ("URL - " + station.url).c_str());	
+	wattroff(win, COLOR_PAIR(3));
+
+	wattron(win, COLOR_PAIR(2));
 	mvwprintw(win, 12, 1, "%s", ("Website - " + station.homePage).c_str());	
+	wattroff(win, COLOR_PAIR(2));
+
+	wattron(win, COLOR_PAIR(3));
 	mvwprintw(win, 13, 1, "%s", ("Click Count - " + std::to_string(station.clickCount)).c_str());	
+	wattroff(win, COLOR_PAIR(3));
+
+	if ((int)station.geo.size() == 2)
+		mvwprintw(win, 14, 1, "%s", ("Location - " + std::to_string(station.geo[0]) + std::to_string(station.geo[1])).c_str());
+}
+
+void drawFilters(WINDOW *win, int selected, int chosenFilter, int& chosenFilterSetting) {
+	box(win, 0, 0); 
+				
+	std::vector<const char*> filters = {"AMOUNT", "ORDER", "LANGUAGE", "TAGS", "COUNTRY", "REVERSED"};
+	std::vector<const char*> orders = {"name", "url", "homepage", 
+									   "favicon", "tag", "country", 
+									   "state", "language", "votes",
+									   "clickcount", "bitrate", "lastcheckok", 
+									   "lastchecktime", "codec", "random" };
+	int offset = 2;
+	int chosenOffset = -1;
+	int col;
+
+	mvwprintw(win, 5, 1, "%s", std::to_string(chosenFilterSetting).c_str());
+
+	for (int i = 0; i < (int)filters.size(); i++) {
+		if(selected == i) 
+			col = 7;
+		else
+			col = i%2 + 5;
+		
+		if(chosenFilter == selected)
+			chosenOffset = offset;
+
+		wattron(win, COLOR_PAIR(col));	
+		mvwprintw(win, 1, offset, "%s", filters[i]); 
+		wattroff(win, COLOR_PAIR(col));
+		offset += strlen(filters[i]);
+	}
+
+	if (offset == -1)
+		return;
+
+	if (chosenFilter == 1) {
+		if (chosenFilterSetting > (int)orders.size() - 1)
+			chosenFilterSetting = 0;
+		if (chosenFilterSetting < 0)
+			chosenFilterSetting = orders.size() - 1;
+
+		for (int i = 0; i < (int)orders.size(); i++) {
+			if (i == chosenFilterSetting)
+				col = 7;
+			else
+				col = 1; 
+			
+			wattron(win, COLOR_PAIR(col));	
+			mvwprintw(win, 2+i, chosenOffset, "%s", orders[i]);
+			wattroff(win, COLOR_PAIR(col));
+		}
+	}
+}
+
+void drawStations(WINDOW *win, std::vector<PlayerUtil::Station> displayedStations, int page, int selected) {
+	box(win, 0, 0);
+	// Draw stations
+	for (int i = 0; i < (int)displayedStations.size(); i++) {
+	    int globalIndex = page * rows + i; 
+	
+	    if (globalIndex == selected)
+	        wattron(win, A_REVERSE); // Highlight
+		else
+			wattron(win, COLOR_PAIR(1));
+	
+	    mvwprintw(win, i + 1, 0, "%s", (" > " + displayedStations[i].shortName).c_str());
+	
+	    if (globalIndex == selected)
+	        wattroff(win, A_REVERSE); // Disable highlight
+		else
+			wattroff(win, COLOR_PAIR(1)); 
+	}
 }
 
 int main() {
@@ -125,36 +224,64 @@ int main() {
 	noecho();
 	curs_set(0);
 	nodelay(stdscr, TRUE);
+	start_color();
+	use_default_colors();
 
 	getmaxyx(stdscr, rows, cols);
-	WINDOW *infoWindow = newwin(rows, cols / 2, 0, cols - cols / 2);
+
+	WINDOW *infoWindow = newwin(rows/2, cols / 2, 1, cols / 2);
 	nodelay(infoWindow, TRUE);
+
+	WINDOW *stationsWindow = newwin(rows, cols/2, 1, 0);
+
+	WINDOW *filtersWindow = newwin(rows / 2, cols / 2, rows / 2+1, cols / 2);
+
+	// Define colors
+	init_pair(1, COLOR_BLUE, -1);
+	init_pair(2, COLOR_GREEN, -1);
+	init_pair(3, COLOR_RED, -1);
+
+	init_pair(4, COLOR_WHITE, COLOR_BLUE);
+	init_pair(5, COLOR_BLACK, COLOR_GREEN);
+	init_pair(6, COLOR_WHITE, COLOR_RED);
+	init_pair(7, COLOR_BLACK, COLOR_WHITE);
+
+	// Print at beginning
+	mvwprintw(stationsWindow, 0, 0, "%s", "Loading top 20 English stations...");
+	wrefresh(stationsWindow);
 
 	int selected = 0;
 	int page = 0;
-	auto stations = getStations("?limit=100&order=clickcount&reverse=true");
+	auto stations = getStations("?limit=20&order=clickcount&tag=rock&reverse=true&language=english", cols/2 - 3);
 	auto displayedStations = constructDisplayedStations(stations, page);
 	std::string header = "";
+	
+	bool inFiltersWindow = false;
+	int selectedFilter = -1;
+	int chosenFilter = -1;
+	int chosenFilterSetting = -1;
 	
 	if (stations.empty()) 
 		mvprintw(0, 0, "%s", "No stations found.");
 
 	Player mainPlayer;
 	char input;
+	int volume = 50;
+	std::string oldHeader = "";
 
-	std::string* sortOrder = nullptr;
-	std::string* country = nullptr;
-	std::string* tags = nullptr; 
+	std::string* sortOrder = new std::string("clickcount");
+	std::string* country = new std::string("United%20States");
+	std::string* tags = new std::string("rock"); 
+	std::string* language = new std::string("english");
 	bool reverse = false;
+	
 
 	while (true) {
-		// Refresh the entire window 
 		input = getch();
-		drawHeader(header);
 
-		if (selected >= (int)stations.size()-1) {
-			std::string args = constructArgs(100, stations.size(), sortOrder, tags, reverse, country);
-			auto moreStations = getStations(args);	
+		if (selected >= (int)stations.size()-10) {
+			std::string args = constructArgs(50, stations.size(), sortOrder, tags, reverse, country, language);
+			auto moreStations = getStations(args, cols/2-3);	
 			
 			for (const auto& station : moreStations) {
 				stations.push_back(station);
@@ -165,6 +292,36 @@ int main() {
 		// Input handeling
 		if (input == 'q') break; // quit
 
+		if (input == '=') {
+			volume += 5;
+			if (volume > 100)
+				volume = 100;
+			mainPlayer.setVolume(volume);
+			header = "Set volume to: " + std::to_string(volume);
+		}
+		if (input == '-') {
+			volume -= 5;
+			if (volume < 0)
+				volume = 0;
+			mainPlayer.setVolume(volume);
+			header = "Set volume to: " + std::to_string(volume);
+		}
+
+		if (input == 'f') { 
+			if (!inFiltersWindow) {
+				selectedFilter = 0;
+				inFiltersWindow = !inFiltersWindow;
+				oldHeader = header;
+				header = "Editing Filters.";
+			} else {
+				inFiltersWindow = !inFiltersWindow;
+				selectedFilter = -1;
+				chosenFilter = -1;
+				
+				if (oldHeader != "")
+					header = oldHeader;
+			}
+		}
 		
 		if (input == 'p') {
 			if (mainPlayer.isPlaying()){
@@ -175,57 +332,90 @@ int main() {
 				header = "Playing";
 			}
 		} 
-
-		if (input == 'j' && selected < (int)stations.size() - 1) {
-    		selected++;
-    		if (selected >= (page + 1) * rows - 1) {  // Move to next page
-				wclear(stdscr);
-        		page++;
-		        displayedStations = constructDisplayedStations(stations, page);
-    		}
+	
+		// Up and down
+		if (input == 'j') {
+			if (!inFiltersWindow) {
+				if (selected < (int)stations.size()) {
+    				selected++;
+    				if (selected >= (page + 1) * rows - 1) {  // Move to next page
+        				page++;
+			    	    displayedStations = constructDisplayedStations(stations, page);
+    				}
+				}
+			} else {
+				chosenFilterSetting++;	
+			}
 		}
 
-		if (input == 'k' && selected > 0) {
-		    selected--;
-		    if (selected < page * rows - 1) {  // Move to previous page
-				wclear(stdscr);
-		        page--;
-		        displayedStations = constructDisplayedStations(stations, page);
-		    }
+		if (input == 'k') {
+			if (!inFiltersWindow) {	
+				if (selected > 0) {
+			    	selected--;
+			    	if (selected < page * rows - 1) {  // Move to previous page
+			    	    page--;
+			    	    displayedStations = constructDisplayedStations(stations, page);
+			    	}
+				}
+			} else { 
+				chosenFilterSetting--;
+			}
+		}
+		
+		// Left and right
+		if(input == 'h' && inFiltersWindow) {
+			selectedFilter--;
+			if (selectedFilter < 0)
+				selectedFilter = 5;
 		}
 
+		if(input == 'l' && inFiltersWindow) {
+			selectedFilter++;
+			if (selectedFilter > 5)
+				selectedFilter = 0;
+		}
+			
+		
 		if (input == '\n') { // Enter key
-			header = playStation(mainPlayer, stations[selected]);
+			if (!inFiltersWindow) {
+				header = playStation(mainPlayer, stations[selected]);
+			 } else {
+				chosenFilter = selectedFilter;
+			}
 		}
 	
 		if (input == 'G') {
-			wclear(stdscr);
 			page = 0;
 			selected = 0;
 		    displayedStations = constructDisplayedStations(stations, page);
 		}
 
-		// Draw stations
-		for (int i = 0; i < (int)displayedStations.size(); i++) {
-		    int globalIndex = page * rows + i; 
-		
-		    if (globalIndex == selected)
-		        attron(A_REVERSE); // Highlight
-		
-		    mvprintw(i + 1, 0, "%s", displayedStations[i].shortName.c_str());
-		
-		    if (globalIndex == selected)
-		        attroff(A_REVERSE); // Disable highlight
-		}
+		werase(stationsWindow);
+		drawStations(stationsWindow, displayedStations, page, selected);
 		
 		// Draw station info
 		werase(infoWindow);
 		drawInfo(stations[selected], infoWindow);
-		wrefresh(infoWindow);
 
-		wrefresh(stdscr);
+		// Draw filters window
+		werase(filtersWindow);
+		drawFilters(filtersWindow, selectedFilter, chosenFilter, chosenFilterSetting);
+		
+		wrefresh(stationsWindow);
+		wrefresh(infoWindow);
+		wrefresh(filtersWindow);
+		doupdate();
+
+		drawHeader(header);
+
 		usleep(10000);
+
 	}
+	
+	delete sortOrder;
+	delete country;
+	delete tags; 
+	delete language;
 
 	endwin();
     return 0;

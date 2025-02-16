@@ -167,7 +167,7 @@ std::vector<std::string> PlayerUtil::getReverseDNS(const std::vector<std::string
     return hostnames;
 }
 
-std::vector<PlayerUtil::Station> PlayerUtil::getStreamInfo(const std::string &json) {
+std::vector<PlayerUtil::Station> PlayerUtil::getStreamInfo(const std::string &json, int shortWordLength) {
     std::vector<PlayerUtil::Station> stationList;
 
     try {
@@ -178,8 +178,8 @@ std::vector<PlayerUtil::Station> PlayerUtil::getStreamInfo(const std::string &js
 
             station.name = obj.value("name", "Unknown");
 
-			if((int)station.name.size() > 48)
-				station.shortName = station.name.substr(0, 45) + "...";
+			if((int)station.name.size() > shortWordLength)
+				station.shortName = station.name.substr(0, shortWordLength-4) + "...";
 			else
 				station.shortName = station.name;
             station.tags = obj.value("tags", "");

@@ -24,6 +24,9 @@ public:
     // Pause the station
     void pause();
 
+	// Set the volume of the stream
+	void setVolume(int volume);
+
     // Sets the station
     void setStation(const std::string& newStream);
 

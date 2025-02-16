@@ -94,6 +94,15 @@ void Player::pause() {
 	}
 }
 
+void Player::setVolume(int volume) {
+    if (!mpv) return;
+
+	double vol = static_cast<double>(volume);
+    if (mpv_set_property(mpv, "volume", MPV_FORMAT_DOUBLE, &vol) < 0) {
+        std::cerr << "Failed to set volume to " << volume << std::endl;
+    }
+}
+
 void Player::setStation(const std::string& newStream) {
     if (stream == newStream) {
         return;
