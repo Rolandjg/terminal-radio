@@ -34,7 +34,6 @@ std::vector<PlayerUtil::Station> getStations(const std::string &args, int shortW
 	stations = PlayerUtil::getStreamInfo(response, shortWordLength);	
 
 	if(stations.empty()) {
-		std::cout << "No stations found ): " << std::endl;
 		return stations;
 	}
 	return stations;
@@ -58,6 +57,9 @@ std::string playStation(Player &player, const PlayerUtil::Station &station) {
 std::vector<PlayerUtil::Station> constructDisplayedStations(const std::vector<PlayerUtil::Station> &stations, int page) {
     std::vector<PlayerUtil::Station> displayedStations;
     
+	if (stations.empty())
+		return displayedStations;
+
     int startIdx = rows * page;
 
     int endIdx = std::min(startIdx + rows, (int)stations.size());
@@ -76,7 +78,7 @@ void drawHeader(std::string message) {
 	attron(A_REVERSE); // Highlight
 	// Clear
 	for (int i = 0; i < cols; i++) 
-		mvprintw(0, i, "%s", " ");
+		mvprintw(0, i, "%s", "  ");
 	mvprintw(0, 0, "%s", message.c_str());
 	attroff(A_REVERSE); // Disable highlight
 }
@@ -159,8 +161,6 @@ void drawFilters(WINDOW *win, int selected, int chosenFilter, int& chosenFilterS
 	int offset = 2;
 	int chosenOffset = -1;
 	int col;
-
-	mvwprintw(win, 5, 1, "%s", std::to_string(chosenFilterSetting).c_str());
 
 	for (int i = 0; i < (int)filters.size(); i++) {
 		if(selected == i) 
@@ -250,10 +250,17 @@ int main() {
 	mvwprintw(stationsWindow, 0, 0, "%s", "Loading top 20 English stations...");
 	wrefresh(stationsWindow);
 
+	std::string* sortOrder = new std::string("clickcount");;
+	std::string* country = nullptr;
+	std::string* tags = new std::string("rock"); 
+	std::string* language = nullptr;
+	bool reverse = true;	
+
 	int selected = 0;
 	int page = 0;
-	auto stations = getStations("?limit=20&order=clickcount&tag=rock&reverse=true&language=english", cols/2 - 3);
+	auto stations = getStations(constructArgs(50, 0, sortOrder, tags, reverse, country, language), cols/2 - 3);
 	auto displayedStations = constructDisplayedStations(stations, page);
+	std::vector<PlayerUtil::Station> history;	
 	std::string header = "";
 	
 	bool inFiltersWindow = false;
@@ -262,29 +269,30 @@ int main() {
 	int chosenFilterSetting = -1;
 	
 	if (stations.empty()) 
-		mvprintw(0, 0, "%s", "No stations found.");
+		mvprintw(1, 0, "%s", "No stations found.");
 
 	Player mainPlayer;
 	char input;
-	int volume = 50;
+	int volume = 100;
 	std::string oldHeader = "";
-
-	std::string* sortOrder = new std::string("clickcount");
-	std::string* country = new std::string("United%20States");
-	std::string* tags = new std::string("rock"); 
-	std::string* language = new std::string("english");
-	bool reverse = false;
-	
 
 	while (true) {
 		input = getch();
 
-		if (selected >= (int)stations.size()-10) {
+		if (selected >= (int)stations.size() - 2) {
 			std::string args = constructArgs(50, stations.size(), sortOrder, tags, reverse, country, language);
 			auto moreStations = getStations(args, cols/2-3);	
 			
-			for (const auto& station : moreStations) {
-				stations.push_back(station);
+			for (int i = 0; i < (int)moreStations.size(); i++) {
+				bool duplicate = false;
+
+				for (int j = 0; j < (int)stations.size(); j++) {
+					if (stations[j].name == moreStations[i].name) {
+						duplicate = true;
+					}
+				}
+				if (!duplicate) 
+					stations.push_back(moreStations[i]);
 			}
 			displayedStations = constructDisplayedStations(stations, page);
 		}
@@ -326,17 +334,18 @@ int main() {
 		if (input == 'p') {
 			if (mainPlayer.isPlaying()){
 				mainPlayer.pause();
+				oldHeader = header;
 				header = " Paused";
 			} else {
 				mainPlayer.play();
-				header = "Playing";
+				header = oldHeader;
 			}
 		} 
 	
 		// Up and down
 		if (input == 'j') {
 			if (!inFiltersWindow) {
-				if (selected < (int)stations.size()) {
+				if (selected < (int)stations.size() - 1) {
     				selected++;
     				if (selected >= (page + 1) * rows - 1) {  // Move to next page
         				page++;
