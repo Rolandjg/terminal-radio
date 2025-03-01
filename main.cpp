@@ -12,6 +12,15 @@
 
 int rows, cols;
 
+int amount = 50;
+std::string* sortOrder = new std::string("clickcount");;
+std::string* country = nullptr;
+std::string* tags = nullptr; 
+std::string* language = new std::string("english");
+bool reverse = true;	
+
+std::string inputBuffer;
+
 /*
  * gets a list of stations, pass in args for filtering.
  */
@@ -70,6 +79,49 @@ std::vector<PlayerUtil::Station> constructDisplayedStations(const std::vector<Pl
     return displayedStations;
 }
 
+std::string urlEncode(const std::string& str) {
+    std::ostringstream encoded;
+    for (char c : str) {
+        if (isalnum(c) || c == '-' || c == '_' || c == '.' || c == '~') {
+            encoded << c;
+        } else {
+            encoded << '%' << std::uppercase << std::hex << static_cast<int>(static_cast<unsigned char>(c));
+        }
+    }
+    return encoded.str();
+}
+
+/*
+ * Reads string input
+ */
+void typeString(std::string &inputBuffer) {
+    int ch;
+    inputBuffer.clear();
+    move(0, 0);  // Move cursor to top left
+    clrtoeol();  // Clear line
+    printw("Enter value: ");
+    refresh();
+    echo();      // Show typed characters
+    curs_set(1); // Show cursor
+    
+    while ((ch = getch()) != '\n') {  // Stop when Enter is pressed
+        if (ch == KEY_BACKSPACE || ch == 127) {  // Handle backspace
+            if (!inputBuffer.empty()) {
+                inputBuffer.pop_back();
+                move(0, 13 + inputBuffer.length());
+                printw(" ");
+                move(0, 13 + inputBuffer.length());
+                refresh();
+            }
+        } else if (isprint(ch)) {  // Accept only printable characters
+            inputBuffer += ch;
+        }
+    }
+    
+    noecho();    // Turn off echo
+    curs_set(0); // Hide cursor again
+}
+
 /*
  * Draws the header to the top of the page
  */
@@ -78,7 +130,7 @@ void drawHeader(std::string message) {
 	attron(A_REVERSE); // Highlight
 	// Clear
 	for (int i = 0; i < cols; i++) 
-		mvprintw(0, i, "%s", "  ");
+		mvprintw(0, i, "%s", " ");
 	mvprintw(0, 0, "%s", message.c_str());
 	attroff(A_REVERSE); // Disable highlight
 }
@@ -99,7 +151,7 @@ std::string constructArgs(int limit, int offset, const std::string* order, const
 	if (country != nullptr)
 		args += "&country=" + *country;
 	if (language != nullptr)
-		args += "&language" + *language;
+		args += "&language=" + *language;  // Fixed: was missing "=" sign
 	if (reverse)
 		args += "&reverse=true";
 
@@ -146,10 +198,10 @@ void drawInfo(PlayerUtil::Station station, WINDOW *win) {
 	wattroff(win, COLOR_PAIR(3));
 
 	if ((int)station.geo.size() == 2)
-		mvwprintw(win, 14, 1, "%s", ("Location - " + std::to_string(station.geo[0]) + std::to_string(station.geo[1])).c_str());
+		mvwprintw(win, 14, 1, "%s", ("Location - " + std::to_string(station.geo[0]) + ", " + std::to_string(station.geo[1])).c_str());
 }
 
-void drawFilters(WINDOW *win, int selected, int chosenFilter, int& chosenFilterSetting) {
+void drawFilters(WINDOW *win, int selected, int chosenFilter, int& selectedFilterSetting) {
 	box(win, 0, 0); 
 				
 	std::vector<const char*> filters = {"AMOUNT", "ORDER", "LANGUAGE", "TAGS", "COUNTRY", "REVERSED"};
@@ -163,44 +215,78 @@ void drawFilters(WINDOW *win, int selected, int chosenFilter, int& chosenFilterS
 	int col;
 
 	for (int i = 0; i < (int)filters.size(); i++) {
-		if(selected == i) 
+		if(selected == i) {
 			col = 7;
-		else
-			col = i%2 + 5;
-		
-		if(chosenFilter == selected)
 			chosenOffset = offset;
-
+		} else {
+			col = i%2 + 5;
+		}
+		
 		wattron(win, COLOR_PAIR(col));	
 		mvwprintw(win, 1, offset, "%s", filters[i]); 
 		wattroff(win, COLOR_PAIR(col));
-		offset += strlen(filters[i]);
+		offset += strlen(filters[i]) + 1; // Add space between filters
 	}
 
-	if (offset == -1)
-		return;
-
-	if (chosenFilter == 1) {
-		if (chosenFilterSetting > (int)orders.size() - 1)
-			chosenFilterSetting = 0;
-		if (chosenFilterSetting < 0)
-			chosenFilterSetting = orders.size() - 1;
+	// Sort order
+	if (selected == 1) {
+		if (selectedFilterSetting > (int)orders.size() - 1)
+			selectedFilterSetting = 0;
+		if (selectedFilterSetting < 0)
+			selectedFilterSetting = orders.size() - 1;
 
 		for (int i = 0; i < (int)orders.size(); i++) {
-			if (i == chosenFilterSetting)
+			if (i == selectedFilterSetting)
 				col = 7;
 			else
 				col = 1; 
 			
 			wattron(win, COLOR_PAIR(col));	
-			mvwprintw(win, 2+i, chosenOffset, "%s", orders[i]);
+			mvwprintw(win, 3+i, chosenOffset+1, "%s", orders[i]);
 			wattroff(win, COLOR_PAIR(col));
 		}
+	}
+
+	// Current values for each filter
+	if (selected > -1) {
+		int displayRow = 2;
+		wattron(win, COLOR_PAIR(2));
+		//mvwprintw(win, displayRow, chosenOffset, "Current value: ");
+		
+		switch(selected) {
+			case 0: // AMOUNT
+				mvwprintw(win, displayRow, chosenOffset, "%d", amount);
+				break;
+			case 1: // ORDER
+				mvwprintw(win, displayRow, chosenOffset, "%s", sortOrder->c_str());
+				break;
+			case 2: // LANGUAGE
+				mvwprintw(win, displayRow, chosenOffset, "%s", language ? language->c_str() : "none");
+				break;
+			case 3: // TAGS
+				mvwprintw(win, displayRow, chosenOffset, "%s", tags ? tags->c_str() : "none");
+				break;
+			case 4: // COUNTRY
+				mvwprintw(win, displayRow, chosenOffset, "%s", country ? country->c_str() : "none");
+				break;
+			case 5: // REVERSED
+				if (reverse)
+					mvwprintw(win, displayRow, chosenOffset, "%s", "true");
+				else
+					mvwprintw(win, displayRow, chosenOffset, "%s", "false");
+				break;
+		}
+		wattroff(win, COLOR_PAIR(2));
 	}
 }
 
 void drawStations(WINDOW *win, std::vector<PlayerUtil::Station> displayedStations, int page, int selected) {
 	box(win, 0, 0);
+	std::string spaces; 
+
+	for(int i = 0; i < cols/2; i++) {
+		spaces +=  " ";
+	}
 	// Draw stations
 	for (int i = 0; i < (int)displayedStations.size(); i++) {
 	    int globalIndex = page * rows + i; 
@@ -210,6 +296,9 @@ void drawStations(WINDOW *win, std::vector<PlayerUtil::Station> displayedStation
 		else
 			wattron(win, COLOR_PAIR(1));
 	
+		//clear station area
+	    mvwprintw(win, i + 1, 0, "%s", spaces.c_str());
+
 	    mvwprintw(win, i + 1, 0, "%s", (" > " + displayedStations[i].shortName).c_str());
 	
 	    if (globalIndex == selected)
@@ -219,9 +308,79 @@ void drawStations(WINDOW *win, std::vector<PlayerUtil::Station> displayedStation
 	}
 }
 
+bool isInt(std::string str) {
+	for (char c : str) {
+		if (c < '0' || c > '9')
+			return false;
+	}
+	return !str.empty();	// Added check to avoid empty strings
+}
+
+bool assignSetting(int settingIndex, std::string input, bool& shouldRefreshStations) { 
+	if (input.empty()) {
+		return false;
+	}
+	
+	shouldRefreshStations = true;
+	
+	switch (settingIndex) {
+		case 0: // AMOUNT
+			if (isInt(input)) {
+				int newAmount = std::stoi(input);
+				if (newAmount > 0) {
+					amount = newAmount;
+					return true;
+				}
+			}
+			break;
+		case 1: // ORDER
+			if (sortOrder == nullptr) {
+				sortOrder = new std::string(input);
+			} else {
+				*sortOrder = input;
+			}
+			return true;
+		case 2: // LANGUAGE
+			if (language == nullptr) {
+				language = new std::string(input);
+			} else {
+				*language = input;
+			}
+			return true;
+		case 3: // TAGS
+			if (tags == nullptr) {
+				tags = new std::string(input);
+			} else {
+				*tags = input;
+			}
+			return true;
+		case 4: // COUNTRY
+			if (country == nullptr) {
+				country = new std::string(urlEncode(input));
+			} else {
+				*country = urlEncode(input);
+			}
+			return true;
+		case 5: // REVERSED
+			if (input == "true" || input == "1" || input == "yes") {
+				reverse = true;
+				return true;
+			} else if (input == "false" || input == "0" || input == "no") {
+				reverse = false;
+				return true;
+			}
+			break;
+	}
+	
+	shouldRefreshStations = false;
+	return false;
+}
+			
 int main() {
 	initscr();
 	noecho();
+	cbreak();               // Line buffering disabled
+	keypad(stdscr, TRUE);   // We get F1, F2 etc..
 	curs_set(0);
 	nodelay(stdscr, TRUE);
 	start_color();
@@ -247,26 +406,20 @@ int main() {
 	init_pair(7, COLOR_BLACK, COLOR_WHITE);
 
 	// Print at beginning
-	mvwprintw(stationsWindow, 0, 0, "%s", "Loading top 20 English stations...");
+	mvwprintw(stationsWindow, 0, 0, "%s", "Loading top stations...");
 	wrefresh(stationsWindow);
-
-	std::string* sortOrder = new std::string("clickcount");;
-	std::string* country = nullptr;
-	std::string* tags = new std::string("rock"); 
-	std::string* language = nullptr;
-	bool reverse = true;	
 
 	int selected = 0;
 	int page = 0;
-	auto stations = getStations(constructArgs(50, 0, sortOrder, tags, reverse, country, language), cols/2 - 3);
+	auto stations = getStations(constructArgs(amount, 0, sortOrder, tags, reverse, country, language), cols/2 - 3);
 	auto displayedStations = constructDisplayedStations(stations, page);
 	std::vector<PlayerUtil::Station> history;	
-	std::string header = "";
+	std::string header = "Loaded stations. Press 'f' for filters, Enter to play, 'p' to pause, 'q' to quit.";
 	
 	bool inFiltersWindow = false;
 	int selectedFilter = -1;
 	int chosenFilter = -1;
-	int chosenFilterSetting = -1;
+	int selectedFilterSetting = -1;
 	
 	if (stations.empty()) 
 		mvprintw(1, 0, "%s", "No stations found.");
@@ -275,12 +428,18 @@ int main() {
 	char input;
 	int volume = 100;
 	std::string oldHeader = "";
+	bool shouldRefreshStations = false;
+	std::vector<const char*> orders = {"name", "url", "homepage", 
+									   "favicon", "tag", "country", 
+									   "state", "language", "votes",
+									   "clickcount", "bitrate", "lastcheckok", 
+									   "lastchecktime", "codec", "random" };
 
 	while (true) {
 		input = getch();
 
 		if (selected >= (int)stations.size() - 2) {
-			std::string args = constructArgs(50, stations.size(), sortOrder, tags, reverse, country, language);
+			std::string args = constructArgs(amount, stations.size(), sortOrder, tags, reverse, country, language);
 			auto moreStations = getStations(args, cols/2-3);	
 			
 			for (int i = 0; i < (int)moreStations.size(); i++) {
@@ -307,6 +466,7 @@ int main() {
 			mainPlayer.setVolume(volume);
 			header = "Set volume to: " + std::to_string(volume);
 		}
+
 		if (input == '-') {
 			volume -= 5;
 			if (volume < 0)
@@ -320,7 +480,7 @@ int main() {
 				selectedFilter = 0;
 				inFiltersWindow = !inFiltersWindow;
 				oldHeader = header;
-				header = "Editing Filters.";
+				header = "Editing Filters. Use h/l to switch filters, Enter to edit, j/k to scroll options.";
 			} else {
 				inFiltersWindow = !inFiltersWindow;
 				selectedFilter = -1;
@@ -353,7 +513,7 @@ int main() {
     				}
 				}
 			} else {
-				chosenFilterSetting++;	
+				selectedFilterSetting++;	
 			}
 		}
 
@@ -361,13 +521,13 @@ int main() {
 			if (!inFiltersWindow) {	
 				if (selected > 0) {
 			    	selected--;
-			    	if (selected < page * rows - 1) {  // Move to previous page
+			    	if (selected < page * rows) {  // Fixed: was using page * rows - 1
 			    	    page--;
 			    	    displayedStations = constructDisplayedStations(stations, page);
 			    	}
 				}
 			} else { 
-				chosenFilterSetting--;
+				selectedFilterSetting--;
 			}
 		}
 		
@@ -387,9 +547,49 @@ int main() {
 		
 		if (input == '\n') { // Enter key
 			if (!inFiltersWindow) {
-				header = playStation(mainPlayer, stations[selected]);
-			 } else {
-				chosenFilter = selectedFilter;
+				if (!stations.empty()) { // Protect against empty station list
+					header = playStation(mainPlayer, stations[selected]);
+				}
+			} else {
+				// Special handling for ORDER selection with j/k navigation
+				if (selectedFilter == 1 && selectedFilterSetting >= 0 && selectedFilterSetting < (int)orders.size()) {
+					// Select from the list of orders
+					if (sortOrder == nullptr) {
+						sortOrder = new std::string(orders[selectedFilterSetting]);
+					} else {
+						*sortOrder = orders[selectedFilterSetting];
+					}
+					shouldRefreshStations = true;
+				} else if (selectedFilter == 5) { // REVERSED
+					// Toggle the reverse value
+					reverse = !reverse;
+					shouldRefreshStations = true;
+					header = "Reversed: " + std::string(reverse ? "true" : "false");
+				} else {
+					// For other filters, get input
+					nodelay(stdscr, FALSE); // Temporarily disable non-blocking
+					typeString(inputBuffer);
+					nodelay(stdscr, TRUE);  // Re-enable non-blocking
+					
+					bool success = assignSetting(selectedFilter, inputBuffer, shouldRefreshStations);
+					
+					if (success) {
+						header = "Filter updated: " + inputBuffer;
+					} else {
+						header = "Invalid input: " + inputBuffer;
+					}
+				}
+				
+				// Refresh stations list if filter was changed
+				if (shouldRefreshStations) {
+					// Reset page and selected to beginning of list
+					page = 0;
+					selected = 0;
+					stations.clear();
+					stations = getStations(constructArgs(amount, 0, sortOrder, tags, reverse, country, language), cols/2 - 3);
+					displayedStations = constructDisplayedStations(stations, page);
+					shouldRefreshStations = false;
+				}
 			}
 		}
 	
@@ -404,11 +604,13 @@ int main() {
 		
 		// Draw station info
 		werase(infoWindow);
-		drawInfo(stations[selected], infoWindow);
+		if (!stations.empty()) { // Protect against empty station list
+			drawInfo(stations[selected], infoWindow);
+		}
 
 		// Draw filters window
 		werase(filtersWindow);
-		drawFilters(filtersWindow, selectedFilter, chosenFilter, chosenFilterSetting);
+		drawFilters(filtersWindow, selectedFilter, chosenFilter, selectedFilterSetting);
 		
 		wrefresh(stationsWindow);
 		wrefresh(infoWindow);
@@ -418,7 +620,6 @@ int main() {
 		drawHeader(header);
 
 		usleep(10000);
-
 	}
 	
 	delete sortOrder;
@@ -429,4 +630,3 @@ int main() {
 	endwin();
     return 0;
 }
-
