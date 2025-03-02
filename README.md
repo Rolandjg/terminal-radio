@@ -22,13 +22,13 @@ brew install mpv
 ```
 
 # Keybinds
-Navigate with `hjkl`
-Control volume with `- and =`
-Pause/Unpause with `p`
-Go to top of list with `G`
-Select station with `enter`
-Enter/Leave filters window with `f`
-Close with `q` or `ctrl + c`
+- Navigate with `hjkl`
+- Control volume with `- and =`
+- Pause/Unpause with `p`
+- Go to top of list with `G`
+- Select station with `enter`
+- Enter/Leave filters window with `f`
+- Close with `q` or `ctrl + c`
 
 # Future Plans
 - [ ] Make the code less spaghettified
