@@ -1,6 +1,8 @@
 # Terminal Radio
 Listen to the radio in your terminal window
 
+https://github.com/user-attachments/assets/4f006200-2b32-4a8e-87e9-97b3f72ca720
+
 # Compiling
 Make sure you have the curl development libraries and the mpv development libraries installed
 
