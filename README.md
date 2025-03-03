@@ -6,21 +6,26 @@ https://github.com/user-attachments/assets/4f006200-2b32-4a8e-87e9-97b3f72ca720
 # Compiling
 Make sure you have the curl development libraries and the mpv development libraries installed
 
-Ubuntu
+- Ubuntu
 ```
 sudo apt update
 sudo apt install libcurl4-openssl-dev mpv
 ```
 
-Fedora
+- Fedora
 ```
 sudo dnf install curl-devel mpv-devel
 ```
 
-Mac
+- Mac
 ```
 brew install curl
 brew install mpv
+```
+Compile and run with make
+```
+make main
+./main
 ```
 
 # Keybinds
