@@ -32,7 +32,8 @@ make main
 - Navigate with `hjkl`
 - Control volume with `- and =`
 - Pause/Unpause with `p`
-- Go to top of list with `G`
+- Go to bottom of list with `G`
+- Go to top of list with `gg`
 - Select station with `enter`
 - Enter/Leave filters window with `f`
 - Close with `q` or `ctrl + c`

@@ -426,9 +426,10 @@ int main() {
 
 	Player mainPlayer;
 	char input;
-	int volume = 100;
-	std::string oldHeader = "";
-	bool shouldRefreshStations = false;
+        int volume = 100;
+        std::string oldHeader = "";
+        bool shouldRefreshStations = false;
+        bool gPressed = false; // track vim style gg
 	std::vector<const char*> orders = {"name", "url", "homepage", 
 									   "favicon", "tag", "country", 
 									   "state", "language", "votes",
@@ -436,7 +437,22 @@ int main() {
 									   "lastchecktime", "codec", "random" };
 
 	while (true) {
-		input = getch();
+                input = getch();
+
+                // Handle vim-style gg command
+                if (input == 'g') {
+                        if (gPressed) {
+                                page = 0;
+                                selected = 0;
+                                displayedStations = constructDisplayedStations(stations, page);
+                                gPressed = false;
+                                continue;
+                        } else {
+                                gPressed = true;
+                        }
+                } else if (input != ERR) {
+                        gPressed = false;
+                }
 
 		if (selected >= (int)stations.size() - 2) {
 			std::string args = constructArgs(amount, stations.size(), sortOrder, tags, reverse, country, language);
@@ -593,11 +609,13 @@ int main() {
 			}
 		}
 	
-		if (input == 'G') {
-			page = 0;
-			selected = 0;
-		    displayedStations = constructDisplayedStations(stations, page);
-		}
+                if (input == 'G') {
+                        if (!stations.empty()) {
+                                selected = stations.size() - 1;
+                                page = selected / rows;
+                                displayedStations = constructDisplayedStations(stations, page);
+                        }
+                }
 
 		werase(stationsWindow);
 		drawStations(stationsWindow, displayedStations, page, selected);
