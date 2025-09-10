@@ -55,7 +55,7 @@ std::string playStation(Player &player, const PlayerUtil::Station &station) {
 	player.setStation(station.url);
 	player.play();
 
-	std::string message = "Playing " + station.shortName;
+    std::string message = "Playing " + station.shortName + " \u2661"; // Add a heart
 
 	return message;
 }
@@ -131,7 +131,8 @@ void drawHeader(std::string message) {
 	// Clear
 	for (int i = 0; i < cols; i++) 
 		mvprintw(0, i, "%s", " ");
-	mvprintw(0, 0, "%s", message.c_str());
+    std::string cuteMessage = "\u2661 " + message + " \u2661"; // Surround message with hearts
+    mvprintw(0, 0, "%s", cuteMessage.c_str());
 	attroff(A_REVERSE); // Disable highlight
 }
 
@@ -190,15 +191,22 @@ void drawInfo(PlayerUtil::Station station, WINDOW *win) {
 	wattroff(win, COLOR_PAIR(3));
 
 	wattron(win, COLOR_PAIR(2));
-	mvwprintw(win, 12, 1, "%s", ("Website - " + station.homePage).c_str());	
-	wattroff(win, COLOR_PAIR(2));
+  mvwprintw(win, 12, 1, "%s", ("Website - " + station.homePage).c_str());
+  wattroff(win, COLOR_PAIR(2));
 
-	wattron(win, COLOR_PAIR(3));
-	mvwprintw(win, 13, 1, "%s", ("Click Count - " + std::to_string(station.clickCount)).c_str());	
-	wattroff(win, COLOR_PAIR(3));
+  wattron(win, COLOR_PAIR(3));
+  mvwprintw(win, 13, 1, "%s", ("Click Count - " + std::to_string(station.clickCount)).c_str());
+  wattroff(win, COLOR_PAIR(3));
 
-	if ((int)station.geo.size() == 2)
-		mvwprintw(win, 14, 1, "%s", ("Location - " + std::to_string(station.geo[0]) + ", " + std::to_string(station.geo[1])).c_str());
+  if ((int)station.geo.size() == 2)
+          mvwprintw(win, 14, 1, "%s", ("Location - " + std::to_string(station.geo[0]) + ", " + std::to_string(station.geo[1])).c_str());
+
+  // Add a cute cat at the bottom of the info window
+  int maxY, maxX;
+  getmaxyx(win, maxY, maxX);
+  mvwprintw(win, maxY - 3, 1, " /\\_/\\");
+  mvwprintw(win, maxY - 2, 1, "( o.o )");
+  mvwprintw(win, maxY - 1, 1, " > ^ <");
 }
 
 void drawFilters(WINDOW *win, int selected, int chosenFilter, int& selectedFilterSetting) {
@@ -299,7 +307,7 @@ void drawStations(WINDOW *win, std::vector<PlayerUtil::Station> displayedStation
 		//clear station area
 	    mvwprintw(win, i + 1, 0, "%s", spaces.c_str());
 
-	    mvwprintw(win, i + 1, 0, "%s", (" > " + displayedStations[i].shortName).c_str());
+        mvwprintw(win, i + 1, 0, "%s", (" > " + displayedStations[i].shortName + " \u2661").c_str());
 	
 	    if (globalIndex == selected)
 	        wattroff(win, A_REVERSE); // Disable highlight
